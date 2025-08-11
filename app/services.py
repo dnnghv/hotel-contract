@@ -6,7 +6,7 @@ from .docling_client import DoclingClient
 from .segmenter import segment_to_chunks
 from .llm_client import LLMClient
 from .models import Segment, Chunk, BaseContract, ChangeSet
-from .validator import validate_base_contract, validate_changeset
+from .validator import validate_base_contract, validate_changeset, auto_repair_json
 from .merger import apply_changes
 from .render import render_markdown, redline
 from . import storage
@@ -33,10 +33,12 @@ class ExtractionService:
         self.client = client or LLMClient()
 
     async def extract_base(self, chunks: List[Chunk], source_file: str) -> Dict[str, Any]:
-        return await self.client.extract(chunks, mode="base", source_file=source_file)
+        data = await self.client.extract(chunks, mode="base", source_file=source_file)
+        return auto_repair_json(data, kind="base")
 
     async def extract_addendum(self, chunks: List[Chunk], source_file: str) -> Dict[str, Any]:
-        return await self.client.extract(chunks, mode="addendum", source_file=source_file)
+        data = await self.client.extract(chunks, mode="addendum", source_file=source_file)
+        return auto_repair_json(data, kind="addendum")
 
 
 class ValidationService:

@@ -67,9 +67,40 @@ def _validate_clause_business(c: Clause):
 
 
 def auto_repair_json(doc: Dict[str, Any], kind: str) -> Dict[str, Any]:
-    # stub: ensure required keys exist with nulls
+    """Best-effort repair of extracted JSON to satisfy minimum schema.
+
+    - base: ensure meta keys and required clause fields exist with sensible defaults
+    - addendum: ensure changes array exists (light repair)
+    """
     if kind == "base":
-        doc.setdefault("clauses", [])
+        # meta defaults
+        meta = doc.get("meta") or {}
+        if not meta.get("hotel"):
+            meta["hotel"] = "Unknown Hotel"
+        if not meta.get("sign_date"):
+            meta["sign_date"] = date.today().isoformat()
+        if not meta.get("currency"):
+            meta["currency"] = "VND"
+        doc["meta"] = meta
+
+        # clauses defaults
+        clauses = doc.get("clauses") or []
+        repaired: List[Dict[str, Any]] = []
+        default_from = meta.get("sign_date") or date.today().isoformat()
+        for idx, c in enumerate(clauses):
+            c = dict(c or {})
+            if not c.get("id"):
+                c["id"] = f"c{idx+1}"
+            if not c.get("type"):
+                c["type"] = "Other"
+            if not c.get("title"):
+                c["title"] = f"Clause {idx+1}"
+            if not c.get("effective_from"):
+                c["effective_from"] = default_from
+            if c.get("confidence") is None:
+                c["confidence"] = 0.5
+            repaired.append(c)
+        doc["clauses"] = repaired
     elif kind == "addendum":
         doc.setdefault("changes", [])
-    return doc 
+    return doc

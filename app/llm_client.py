@@ -8,6 +8,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .models import Chunk
 from .config import get_openai_key
+from . import storage
+import logging
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -19,7 +22,9 @@ class LLMClient:
     async def extract(self, chunks: List[Chunk], mode: Literal["base", "addendum"], source_file: str):
         sys_prompt = (
             "Bạn là trình trích xuất. Đầu vào là markdown giữ bảng/heading. "
-            "Trả về duy nhất JSON đúng schema. Không suy đoán; thiếu → null + missing_reason."
+            "Trả về duy nhất JSON đúng schema. Không suy đoán; thiếu → null + missing_reason. "
+            "Mode BASE: trả object gồm keys: meta, clauses. Meta gồm hotel, sign_date (YYYY-MM-DD), currency. "
+            "Mode ADDENDUM: trả ChangeSet."
         )
         user_prompt = self._build_user_prompt(chunks, mode)
         payload = {
@@ -34,15 +39,31 @@ class LLMClient:
         }
         headers = {"Authorization": f"Bearer {self.openai_key}"}
         async with httpx.AsyncClient(timeout=120) as client:
-            r = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
-            r.raise_for_status()
+            logger.info("LLM request: mode=%s model=%s chunks=%s file=%s", mode, self.model, len(chunks), source_file)
+            try:
+                r = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+                r.raise_for_status()
+            except Exception:
+                logger.exception("LLM request failed")
+                raise
             data = r.json()
         content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
+        # Save raw content for debugging/traceability
+        try:
+            storage.save_llm_output(source_file=source_file, mode=mode, content=content)
+        except Exception:
+            logger.warning("Failed to save LLM raw output", exc_info=True)
+        try:
+            parsed = json.loads(content)
+        except Exception:
+            logger.exception("LLM JSON parse failed: content preview=%s", content[:200])
+            raise
+        logger.info("LLM response keys: %s", list(parsed.keys()))
+        return parsed
 
     def _build_user_prompt(self, chunks: List[Chunk], mode: str) -> str:
         header = (
-            "Mode: BASE → trả mảng clauses[] theo schema BaseContract.clauses; "
+            "Mode: BASE → trả JSON: {\"meta\": {hotel, sign_date, currency}, \"clauses\": [...] } theo schema; "
             "Mode: ADDENDUM → trả ChangeSet theo schema. Ngày YYYY-MM-DD."
         )
         body = "\n\n".join([f"[Chunk]\n{c.markdown}" for c in chunks])

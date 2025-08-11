@@ -22,8 +22,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### Endpoints chính
 
-- POST `/contracts/base:ingest` (multipart file PDF)
-- POST `/contracts/{id}/addenda:ingest` (multipart file PDF)
+- POST `/contracts/base/ingest` (multipart file PDF)
+- POST `/contracts/{id}/addenda/ingest` (multipart file PDF)
 - GET `/contracts/{id}/state?as_of=YYYY-MM-DD`
 - GET `/contracts/{id}/versions/{v}/redline`
 

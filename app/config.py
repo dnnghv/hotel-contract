@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from pydantic import BaseSettings, Field, AnyHttpUrl
+import os
+from pydantic_settings import BaseSettings
+from pydantic import Field, AnyHttpUrl
 
 
 class Settings(BaseSettings):
     docling_api_url: AnyHttpUrl = Field(..., alias="DOCLING_API_URL")
     openai_api_key: str = Field(..., alias="OPENAI_API_KEY")
-    data_dir: str = Field("/home/ebk/AI.ROVI/Contract Test/data", alias="DATA_DIR")
+    # Mặc định trỏ tới thư mục data trong project nếu không thiết lập
+    data_dir: str = Field(default_factory=lambda: os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"), alias="DATA_DIR")
 
     class Config:
         env_file = ".env"
