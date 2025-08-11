@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/changeset.schema.json",
+  "title": "ChangeSet",
+  "type": "object",
+  "required": ["source_doc", "issued_date", "changes"],
+  "properties": {
+    "source_doc": { "type": "string" },
+    "issued_date": { "type": "string", "format": "date" },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "op", "type", "target", "effective_from", "confidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "op": { "type": "string", "enum": ["add", "replace", "remove"] },
+          "type": {
+            "type": "string",
+            "enum": [
+              "RateAdjustment", "Promotion", "AllotmentUpdate", "StopSell",
+              "OpenSell", "PolicyUpdate", "TaxUpdate", "SurchargeUpdate"
+            ]
+          },
+          "target": { "type": "object" },
+          "payload": { "type": ["object", "null"] },
+          "effective_from": { "type": "string", "format": "date" },
+          "effective_to": { "type": ["string", "null"], "format": "date" },
+          "notes": { "type": ["string", "null"] },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+} 

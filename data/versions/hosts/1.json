@@ -1,0 +1,57 @@
+{
+  "contract_id": "hosts",
+  "meta": {
+    "hotel": "Hotel ABC",
+    "sign_date": "2025-01-05",
+    "currency": "VND",
+    "source_file": "hosts"
+  },
+  "clauses": [
+    {
+      "id": "CL-PRICING-1",
+      "type": "Pricing",
+      "title": "Bảng giá phòng 2025",
+      "scope": {
+        "room_type": "Deluxe",
+        "rate_plan": "BAR",
+        "occupancy": "2A0C",
+        "meal_plan": "BB",
+        "market": [
+          "VN"
+        ],
+        "channels": [
+          "Direct",
+          "OTA"
+        ]
+      },
+      "season": [
+        {
+          "from_": "2025-01-01",
+          "to": "2025-03-31"
+        }
+      ],
+      "blackout": [
+        "2025-02-08..2025-02-12"
+      ],
+      "table": [
+        {
+          "date_from": "2025-01-01",
+          "date_to": "2025-03-31",
+          "rate": 1200000.0,
+          "currency": "VND",
+          "notes": null
+        }
+      ],
+      "policy": null,
+      "text": "Nguyên văn đoạn điều khoản (nếu cần)",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "source_anchor": {
+        "page": 5,
+        "heading": "Pricing",
+        "table_id": "rate_1"
+      },
+      "confidence": 0.92
+    }
+  ]
+}
