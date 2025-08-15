@@ -16,8 +16,8 @@ class DoclingService:
     def __init__(self, client: Optional[DoclingClient] = None):
         self.client = client or DoclingClient()
 
-    async def parse_pdf(self, file_path: str) -> List[Segment]:
-        return await self.client.parse_pdf(file_path)
+    def parse_pdf(self, file_path: str) -> List[Segment]:
+        return self.client.parse_pdf(file_path)
 
 
 class SegmentationService:
@@ -94,4 +94,11 @@ class VersioningService:
         return storage.state_as_of(contract, as_of)
 
     def save_render(self, contract_id: str, version: int, content_md: str, redline_md: Optional[str] = None) -> dict:
-        return storage.save_render(contract_id, version, content_md, redline_md) 
+        return storage.save_render(contract_id, version, content_md, redline_md)
+
+    # Per-step logging helpers
+    def save_step_text(self, contract_id: str, version: int, step_name: str, content: str) -> str:
+        return storage.save_step_text(contract_id, version, step_name, content)
+
+    def save_step_json(self, contract_id: str, version: int, step_name: str, obj) -> str:
+        return storage.save_step_json(contract_id, version, step_name, obj) 

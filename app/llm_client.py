@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import List, Literal
 
-import httpx
+import asyncio
+import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .models import Chunk
@@ -38,15 +39,24 @@ class LLMClient:
             "top_p": 0.1,
         }
         headers = {"Authorization": f"Bearer {self.openai_key}"}
-        async with httpx.AsyncClient(timeout=120) as client:
-            logger.info("LLM request: mode=%s model=%s chunks=%s file=%s", mode, self.model, len(chunks), source_file)
-            try:
-                r = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
-                r.raise_for_status()
-            except Exception:
-                logger.exception("LLM request failed")
-                raise
-            data = r.json()
+
+        def _post():
+            r = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=120,
+            )
+            r.raise_for_status()
+            return r
+
+        logger.info("LLM request: mode=%s model=%s chunks=%s file=%s", mode, self.model, len(chunks), source_file)
+        try:
+            r = await asyncio.to_thread(_post)
+        except Exception:
+            logger.exception("LLM request failed")
+            raise
+        data = r.json()
         content = data["choices"][0]["message"]["content"]
         # Save raw content for debugging/traceability
         try:

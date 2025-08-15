@@ -4,7 +4,7 @@ import os
 import json
 from typing import List, Dict, Any
 
-import httpx
+import requests
 
 from .models import Segment
 from .config import get_docling_url
@@ -32,45 +32,45 @@ class DoclingClient:
             "include_images": False,
         }
 
-    async def parse_pdf(self, file_path: str) -> List[Segment]:
+    def parse_pdf(self, file_path: str) -> List[Segment]:
         # MOCK MODE: skip actual HTTP call to Docling and return a synthetic markdown
-        logger.warning("DoclingClient MOCK mode enabled. Skipping HTTP call. file=%s", file_path)
-        # Read mock markdown strictly from app/file.txt
-        app_dir = Path(__file__).resolve().parent
-        mock_path = app_dir / "file.txt"
+        # logger.warning("DoclingClient MOCK mode enabled. Skipping HTTP call. file=%s", file_path)
+        # # Read mock markdown strictly from app/file.txt
+        # app_dir = Path(__file__).resolve().parent
+        # mock_path = app_dir / "file.txt"
+        # try:
+        #     text = mock_path.read_text(encoding="utf-8")
+        #     logger.info("Loaded mock markdown from %s (%s chars)", mock_path, len(text))
+        # except Exception as e:
+        #     logger.warning("Failed reading %s: %s. Falling back to placeholder.", mock_path, e)
+        #     text = "# Placeholder\nNo mock content available."
+        # return [Segment(page_range=[], heading=None, raw_md=text, table_blocks=[])]
+        # --- Real Docling HTTP call ---
+        params = self._default_params()
+
         try:
-            text = mock_path.read_text(encoding="utf-8")
-            logger.info("Loaded mock markdown from %s (%s chars)", mock_path, len(text))
+            with open(file_path, "rb") as fh:
+                files = {"files": (os.path.basename(file_path), fh, "application/pdf")}
+                logger.info("Docling request: url=%s file=%s", self.endpoint_url, file_path)
+                r = requests.post(self.endpoint_url, data=params, files=files,timeout=120)
+                r.raise_for_status()
+
+
+            resp_json = r.json()
+            if isinstance(resp_json, dict):
+                text = resp_json.get("text") or resp_json.get("content") or resp_json.get("result") or ""
+                if isinstance(text, list):
+                    text = "\n".join(str(x) for x in text)
+                if not isinstance(text, str):
+                    text = json.dumps(resp_json, ensure_ascii=False)
+            else:
+                text = json.dumps(resp_json, ensure_ascii=False)
+
+            logger.info("Docling response: %s", text)
         except Exception as e:
-            logger.warning("Failed reading %s: %s. Falling back to placeholder.", mock_path, e)
-            text = "# Placeholder\nNo mock content available."
-        # --- Real Docling HTTP call (commented out) ---
-        # headers = {}
-        # params = self._default_params()
-        # data = {k: (json.dumps(v) if isinstance(v, (list, dict, bool)) else v) for k, v in params.items()}
-        # async with httpx.AsyncClient(timeout=120) as client:
-        #     with open(file_path, "rb") as fh:
-        #         files = {"files": (os.path.basename(file_path), fh, "application/pdf")}
-        #         logger.info("Docling request: url=%s file=%s", self.endpoint_url, file_path)
-        #         try:
-        #             r = await client.post(self.endpoint_url, headers=headers, data=data, files=files)
-        #             r.raise_for_status()
-        #         except Exception:
-        #             logger.exception("Docling connection failed")
-        #             raise
-        #     try:
-        #         resp_json = r.json()
-        #         if isinstance(resp_json, dict):
-        #             text = resp_json.get("text") or resp_json.get("content") or resp_json.get("result") or ""
-        #             if isinstance(text, list):
-        #                 text = "\n".join(str(x) for x in text)
-        #             if not isinstance(text, str):
-        #                 text = json.dumps(resp_json, ensure_ascii=False)
-        #         else:
-        #             text = json.dumps(resp_json, ensure_ascii=False)
-        #     except ValueError:
-        #         text = r.text
-        # logger.info("Docling response length: %s chars", len(text or ""))
-        # return [Segment(page_range=[], heading=None, raw_md=text or "", table_blocks=[])]
-        # --- End real call ---
-        return [Segment(page_range=[], heading=None, raw_md=text, table_blocks=[])]
+            logger.exception("Docling connection failed")
+            raise e
+
+        text = r.text
+        logger.info("Docling response length: %s chars", len(text or ""))
+        return [Segment(page_range=[], heading=None, raw_md=text or "", table_blocks=[])]

@@ -11,6 +11,7 @@ from .models import BaseContract, ChangeSet
 import logging
 logger = logging.getLogger(__name__)
 from .config import get_data_dir
+import re
 
 
 DATA_DIR = get_data_dir()
@@ -23,6 +24,7 @@ def _ensure_dirs():
     os.makedirs(os.path.join(DATA_DIR, "docs"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "versions"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "renders"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "steps"), exist_ok=True)
 
 
 def save_pdf(doc_bytes: bytes, filename: str) -> str:
@@ -117,3 +119,35 @@ def save_llm_output(source_file: str, mode: str, content: str) -> str:
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(content)
     return out_path
+
+
+def _steps_dir(contract_id: str, version: int) -> str:
+    _ensure_dirs()
+    path = os.path.join(DATA_DIR, "steps", contract_id, f"v{version}")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _sanitize_step_name(step_name: str) -> str:
+    name = step_name.strip().replace(" ", "_")
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", name)
+
+
+def save_step_text(contract_id: str, version: int, step_name: str, content: str) -> str:
+    """Save free-form text content for a pipeline step.
+
+    Files are stored under DATA_DIR/steps/{contract_id}/v{version}/{step_name}.txt
+    """
+    base = _steps_dir(contract_id, version)
+    fname = f"{_sanitize_step_name(step_name)}.txt"
+    out_path = os.path.join(base, fname)
+    logger.info("Saving step text: %s", out_path)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return out_path
+
+
+def save_step_json(contract_id: str, version: int, step_name: str, obj) -> str:
+    """Save JSON-serialized content for a pipeline step as .txt (pretty JSON)."""
+    text = json.dumps(obj, ensure_ascii=False, indent=2, default=str)
+    return save_step_text(contract_id, version, step_name, text)
